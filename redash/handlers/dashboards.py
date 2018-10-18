@@ -1,8 +1,8 @@
-from flask import request, url_for
+from flask import request, url_for, make_response
 from funcy import project, rpartial
 
 from flask_restful import abort
-from redash import models, serializers
+from redash import models, serializers, settings
 from redash.handlers.base import (BaseResource, get_object_or_404, paginate,
                                   filter_by_tags,
                                   order_results as _order_results)
@@ -92,6 +92,29 @@ class DashboardListResource(BaseResource):
 
 
 class DashboardResource(BaseResource):
+
+    @staticmethod
+    def add_cors_headers(headers):
+        if 'Origin' in request.headers:
+            origin = request.headers['Origin']
+
+            if set(['*', origin]) & settings.ACCESS_CONTROL_ALLOW_ORIGIN:
+                headers['Access-Control-Allow-Origin'] = origin
+                headers['Access-Control-Allow-Credentials'] = str(settings.ACCESS_CONTROL_ALLOW_CREDENTIALS).lower()
+
+    @require_permission('list_dashboards')
+    def options(self, query_id=None, query_result_id=None, filetype='json'):
+        headers = {}
+        self.add_cors_headers(headers)
+
+        if settings.ACCESS_CONTROL_REQUEST_METHOD:
+            headers['Access-Control-Request-Method'] = settings.ACCESS_CONTROL_REQUEST_METHOD
+
+        if settings.ACCESS_CONTROL_ALLOW_HEADERS:
+            headers['Access-Control-Allow-Headers'] = settings.ACCESS_CONTROL_ALLOW_HEADERS
+
+        return make_response("", 200, headers)
+
     @require_permission('list_dashboards')
     def get(self, dashboard_slug=None):
         """
@@ -136,6 +159,9 @@ class DashboardResource(BaseResource):
             response['api_key'] = api_key.api_key
 
         response['can_edit'] = can_modify(dashboard, self.current_user)
+
+        if len(settings.ACCESS_CONTROL_ALLOW_ORIGIN) > 0:
+            self.add_cors_headers(response.headers)
 
         self.record_event({
             'action': 'view',
