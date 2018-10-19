@@ -203,6 +203,18 @@ class QueryListResource(BaseResource):
             with_last_modified_by=False
         )
 
+        if search_term:
+            self.record_event({
+                'action': 'search',
+                'object_type': 'query',
+                'term': search_term,
+            })
+        else:
+            self.record_event({
+                'action': 'list',
+                'object_type': 'query',
+            })
+
         return response
 
 
@@ -370,4 +382,16 @@ class QueryRefreshResource(BaseResource):
 
 class QueryTagsResource(BaseResource):
     def get(self):
-        return {t[0]: t[1] for t in models.Query.all_tags(self.current_user, True)}
+        """
+        Returns all query tags including those for drafts.
+        """
+        tags = models.Query.all_tags(self.current_user, include_drafts=True)
+        return {
+            'tags': [
+                {
+                    'name': name,
+                    'count': count,
+                }
+                for name, count in tags
+            ]
+        }
