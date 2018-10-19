@@ -69,18 +69,6 @@ class DashboardListResource(BaseResource):
             serializer=serialize_dashboard,
         )
 
-        if search_term:
-            self.record_event({
-                'action': 'search',
-                'object_type': 'dashboard',
-                'term': search_term,
-            })
-        else:
-            self.record_event({
-                'action': 'list',
-                'object_type': 'dashboard',
-            })
-
         return response
 
     @require_permission('create_dashboard')
@@ -104,28 +92,6 @@ class DashboardListResource(BaseResource):
 
 
 class DashboardResource(BaseResource):
-
-    @staticmethod
-    def add_cors_headers(headers):
-        if 'Origin' in request.headers:
-            origin = request.headers['Origin']
-
-            if set(['*', origin]) & settings.ACCESS_CONTROL_ALLOW_ORIGIN:
-                headers['Access-Control-Allow-Origin'] = origin
-                headers['Access-Control-Allow-Credentials'] = str(settings.ACCESS_CONTROL_ALLOW_CREDENTIALS).lower()
-
-    @require_permission('list_dashboards')
-    def options(self, query_id=None, query_result_id=None, filetype='json'):
-        headers = {}
-        self.add_cors_headers(headers)
-
-        if settings.ACCESS_CONTROL_REQUEST_METHOD:
-            headers['Access-Control-Request-Method'] = settings.ACCESS_CONTROL_REQUEST_METHOD
-
-        if settings.ACCESS_CONTROL_ALLOW_HEADERS:
-            headers['Access-Control-Allow-Headers'] = settings.ACCESS_CONTROL_ALLOW_HEADERS
-
-        return make_response("", 200, headers)
 
     @require_permission('list_dashboards')
     def get(self, dashboard_slug=None):
@@ -171,9 +137,6 @@ class DashboardResource(BaseResource):
             response['api_key'] = api_key.api_key
 
         response['can_edit'] = can_modify(dashboard, self.current_user)
-
-        if len(settings.ACCESS_CONTROL_ALLOW_ORIGIN) > 0:
-            self.add_cors_headers(response.headers)
 
         self.record_event({
             'action': 'view',
@@ -317,20 +280,10 @@ class DashboardShareResource(BaseResource):
             'object_type': 'dashboard',
         })
 
-
 class DashboardTagsResource(BaseResource):
     @require_permission('list_dashboards')
     def get(self):
         """
         Lists all accessible dashboards.
         """
-        tags = models.Dashboard.all_tags(self.current_org, self.current_user)
-        return {
-            'tags': [
-                {
-                    'name': name,
-                    'count': count,
-                }
-                for name, count in tags
-            ]
-        }
+        return {t[0]: t[1] for t in models.Dashboard.all_tags(self.current_org, self.current_user)}

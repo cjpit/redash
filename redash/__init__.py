@@ -12,6 +12,7 @@ from flask_mail import Mail
 from flask_limiter import Limiter
 from flask_limiter.util import get_ipaddr
 from flask_migrate import Migrate
+from flask_cors import CORS
 
 from redash import settings
 from redash.query_runner import import_query_runners
@@ -98,10 +99,13 @@ def create_app(load_admin=True):
     from redash.authentication import setup_authentication
     from redash.metrics.request import provision_app
 
+
     app = Flask(__name__,
                 template_folder=settings.STATIC_ASSETS_PATH,
                 static_folder=settings.STATIC_ASSETS_PATH,
                 static_path='/static')
+
+    CORS(app)
 
     # Make sure we get the right referral address even behind proxies like nginx.
     app.wsgi_app = ProxyFix(app.wsgi_app, settings.PROXIES_COUNT)
@@ -139,5 +143,6 @@ def create_app(load_admin=True):
     configure_webpack(app)
     extensions.init_extensions(app)
     chrome_logger.init_app(app)
+
 
     return app
